@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Machine FREE</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --icon-width: 10vw;
+            --icon-height: var(--icon-width);
+            --num-icons: 9;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .slots {
+            display: flex;
+            justify-content: space-between;
+            width: calc(5 * var(--icon-width));
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .reel {
+            position: relative;
+            width: var(--icon-width);
+            height: calc(3 * var(--icon-height));
+            overflow: hidden;
+            background-image: url('static/images/slotreel.png');
+            background-repeat: repeat-y;
+            background-size: var(--icon-width) auto;
+        }
+
+        .btn-start {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="text-center">
+        <div class="slots mb-3">
+            <div class="reel"></div>
+            <div class="reel"></div>
+            <div class="reel"></div>
+            <div class="reel"></div>
+            <div class="reel"></div>
+        </div>
+        <button id="start-button" class="btn btn-primary btn-lg btn-start">Start Slot Machine</button>
+        <div id="debug" class="mt-3 text-muted">Press the button to start</div>
+    </div>
+
+    <audio id="roll-sound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
+    <audio id="win-sound" src="https://www.soundjay.com/button/sounds/button-9.mp3"></audio>
+
+    <script>
+        const debugEl = document.getElementById('debug');
+        const iconMap = ["🍌", "7️⃣", "🍒", "🍇", "🍊", "🔔", "🏧", "🍋", "🍉"];
+        const iconWidthValue = getComputedStyle(document.documentElement).getPropertyValue('--icon-width').trim();
+
+        let icon_width;
+        if (iconWidthValue.endsWith('vw')) {
+            const vwValue = parseFloat(iconWidthValue);
+            icon_width = (window.innerWidth * vwValue) / 100; 
+        } else {
+            icon_width = parseFloat(iconWidthValue); 
+        }
+
+        const icon_height = icon_width;
+
+        num_icons = iconMap.length,
+        indexes = [0, 0, 0, 0, 0];
+
+        const rollSound = document.getElementById('roll-sound'),
+            winSound = document.getElementById('win-sound');
+
+        const roll = (reel, offset = 0) => {
+            const delta = (offset + 2) * num_icons + Math.round(Math.random() * num_icons);
+
+            return new Promise((resolve) => {
+                const style = getComputedStyle(reel),
+                    backgroundPositionY = parseFloat(style["background-position-y"]),
+                    targetBackgroundPositionY = backgroundPositionY + delta * icon_height,
+                    normTargetBackgroundPositionY = targetBackgroundPositionY % (num_icons * icon_height);
+
+                setTimeout(() => {
+                    reel.style.transition = `background-position-y ${(8 + 1 * delta) * 100 * (icon_height / icon_width)}ms cubic-bezier(.41,-0.01,.63,1.09)`;
+                    reel.style.backgroundPositionY = `${backgroundPositionY + delta * icon_height}px`;
+                }, offset * 150);
+
+                setTimeout(() => {
+                    reel.style.transition = "none";
+                    reel.style.backgroundPositionY = `${normTargetBackgroundPositionY}px`;
+                    resolve(delta % num_icons);
+                }, (8 + 1 * delta) * 100 + offset * 150);
+            });
+        };
+
+        function rollAll() {
+            debugEl.textContent = 'Rolling...';
+            rollSound.play();
+            const reelsList = document.querySelectorAll('.slots > .reel');
+
+            Promise.all([...reelsList].map((reel, i) => roll(reel, i)))
+                .then((deltas) => {
+                    deltas.forEach((delta, i) => indexes[i] = (indexes[i] + delta) % num_icons);
+                    debugEl.textContent = indexes.map(i => iconMap[i]).join(' - ');
+
+                    if (indexes.every(index => index === indexes[0])) {
+                        winSound.play();
+                        debugEl.textContent += " - You win!";
+                    }
+                });
+        }
+
+        function initializeReels() {
+            const reelsList = document.querySelectorAll('.slots > .reel');
+            const usedIndexes = new Set();
+
+            reelsList.forEach((reel, i) => {
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * num_icons);
+                } while (usedIndexes.has(randomIndex)); // Ensure uniqueness
+                usedIndexes.add(randomIndex);
+                indexes[i] = randomIndex; // Store the random index
+                reel.style.backgroundPositionY = -`${randomIndex * icon_height}px`; // Set random position
+            });
+        }
+
+        document.getElementById('start-button').addEventListener('click', rollAll);
+        window.onload = initializeReels; // Set random configuration on page load
+    </script>
+
+</body>
+
+</html>
